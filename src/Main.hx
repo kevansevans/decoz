@@ -1,50 +1,48 @@
 package;
 
-import hxd.App;
-import enums.Func;
-import enums.ParseState;
-import hxd.File;
-import types.Actor;
-import types.State;
-import types.StateBlock;
-import types.ZDoomFile;
-import types.propvalues.Combo;
-import types.propvalues.Flag;
-import types.propvalues.PropData;
-import types.propvalues.SingleInteger;
-import types.propvalues.SingleString;
-import types.propvalues.StringFloatCombo;
-import types.propvalues.StringIntCombo;
-import types.propvalues.UDMFMetaData;
-import enums.PropName;
 import haxe.io.Bytes;
+import types.MapInfo;
+
+import types.ZDoomFile;
+import types.EdNum;
+
+import sys.io.File;
+import sys.FileSystem;
 
 /**
  * ...
  * @author Kaelan
  */
-class Main extends App
+class Main
 {
 	
 	public static var ZDFile:ZDoomFile;
+	public static var mapinfo:MapInfo;
 	
 	static function main() 
 	{
-		new Main();
-	}
-	
-	public function new()
-	{
-		super();
-	}
-	
-	override function init() 
-	{
-		super.init();
+		Sys.println("Decorate to ZScript converter by kevansevans.");
+		Sys.println("Please view instructions at: https://github.com/kevansevans/decoz");
+		Sys.println("");
+		Sys.println("Please provide the file path:");
+		Sys.print(":> ");
 		
-		ZDFile = new ZDoomFile();
-		ZDoomFile.parseFile(File.getBytes('./testdeco.txt').toString());
+		//var path:String = Sys.stdin().readLine();
 		
-		File.saveBytes('./ZSCRIPT.zsc', Bytes.ofString(ZDFile.toZScriptFile()));
+		ZDFile = new ZDoomFile("Decorate", "./");
+		mapinfo = new MapInfo();
+		
+		ZDoomFile.parseFile(File.getBytes('./DECORATE.txt').toString());
+		
+		File.saveBytes('./ZSCRIPT.txt', Bytes.ofString(ZDFile.toZScriptFile()));
+		File.saveBytes('./MAPINFO.txt', Bytes.ofString(mapinfo.toString()));
+	}
+
+	static function parse()
+	{
+		//ZDFile = new ZDoomFile();
+		//ZDoomFile.parseFile(File.getBytes('./testdeco.txt').toString());
+		
+		//File.saveBytes('./ZSCRIPT.zsc', Bytes.ofString(ZDFile.toZScriptFile()));
 	}
 }

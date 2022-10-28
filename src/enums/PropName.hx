@@ -22,4 +22,6 @@ enum abstract PropName(String) to String
 	var MAXTARGETRANGE;
 	var GIBHEALTH;
 	var DAMAGEFACTOR;
+	var DAMAGETYPE;
+	var SCALE;
 }

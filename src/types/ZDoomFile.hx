@@ -14,7 +14,10 @@ class ZDoomFile
 	public var actors:Array<Actor>;
 	public var const:Array<Constant>;
 	
-	public function new() 
+	public var name:String;
+	public var path:String;
+	
+	public function new(_name:String, _path:String) 
 	{
 		actors = new Array();
 		const = new Array();
@@ -76,32 +79,46 @@ class ZDoomFile
 							activeActor = newActor;
 							file.actors.push(activeActor);
 							
-							var slot:Int = 1;
-							var inherits:Null<String> = null;
-							var replaces:Null<String> = null;
-							var edNum:Null<Int> = null;
+							var line:Array<String> = [];
 							
-							var name = items[slot];
-							
-							if (items[slot + 1] == ":")
+							for (item in items)
 							{
-								slot += 2;
-								inherits = items[slot];
+								if (item.indexOf(':') == 0 && item.length > 1)
+								{
+									line.push(':');
+									line.push(item.substr(1, item.length));
+									continue;
+								}
+								
+								line.push(item);
 							}
 							
-							if (items[slot + 1] == "replaces")
+							switch (line.length)
 							{
-								replaces = items[slot += 2];
+								case 2:
+									activeActor.name = line[1];
+								case 3:
+									activeActor.name = line[1];
+									Main.mapinfo.ednums.push({name : line[1], value : Std.parseInt(line[2])});
+								case 4:
+									activeActor.name = line[1];
+									activeActor.inherits = line[3];
+								case 5:
+									activeActor.name = line[1];
+									activeActor.inherits = line[3];
+									Main.mapinfo.ednums.push({name : line[1], value : Std.parseInt(line[4])});
+								case 6:
+									activeActor.name = line[1];
+									activeActor.inherits = line[3];
+									activeActor.replaces = line[5];
+								case 7:
+									activeActor.name = line[1];
+									activeActor.inherits = line[3];
+									activeActor.replaces = line[5];
+									Main.mapinfo.ednums.push({name : line[1], value : Std.parseInt(line[6])});
+								default:
+									throw 'HWAT!? ${line.length}, $linepos'; 
 							}
-							
-							if (items[slot += 1] != null)
-							{
-								edNum = Std.parseInt(items[slot]);
-							}
-							
-							activeActor.name = name;
-							if (inherits != null) activeActor.inherits = inherits;
-							if (replaces != null) activeActor.replaces = replaces;
 							
 							parseState = NL_OpenBrace;
 							
@@ -118,7 +135,6 @@ class ZDoomFile
 						parseState = PROPERTIES;
 						continue;
 					}
-					throw "Bad actor! Missing open brace!";
 				case PROPERTIES:
 					
 					var prop = items[0];
@@ -198,6 +214,8 @@ class ZDoomFile
 								activeActor.properties.push(new SingleInteger('Speed', Std.parseInt(value)));
 							case PropName.MAXTARGETRANGE:
 								activeActor.properties.push(new SingleInteger('MaxTargetRange', Std.parseInt(value)));
+							case PropName.SCALE:
+								activeActor.properties.push(new SingleFloat('Scale', Std.parseFloat(value)));
 							case PropName.PAINCHANCE:
 								if (Std.parseInt(value) != null) activeActor.properties.push(new SingleInteger('PainChance', Std.parseInt(value)));
 								else 
@@ -208,6 +226,9 @@ class ZDoomFile
 							case PropName.DAMAGEFACTOR:
 								reinjectSpaces();
 								activeActor.properties.push(new StringFloatCombo('DamageFactor', value, Std.parseFloat(items[items.length - 1])));
+							case PropName.DAMAGETYPE:
+								reinjectSpaces();
+								activeActor.properties.push(new SingleString('DamageType', value));
 							case PropName.TAG:
 								reinjectSpaces();
 								activeActor.properties.push(new SingleString("Tag", value));

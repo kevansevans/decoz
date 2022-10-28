@@ -27,15 +27,19 @@ class Actor
 		var info = '';
 		info += 'Class ${name} : ${inherits}' + (replaces == null ? "\n" : ' replaces ${replaces}\n');
 		info += '{\n';
-		info += '\tDefault\n';
-		info += '\t{\n';
 		
-		for (prop in properties)
+		if (properties.length > 0)
 		{
-			info += '\t\t' + prop.toZScript() + '\n';
+			info += '\tDefault\n';
+			info += '\t{\n';
+			
+			for (prop in properties)
+			{
+				info += '\t\t' + prop.toZScript() + '\n';
+			}
+			
+			info += '\t}\n\n';
 		}
-		
-		info += '\t}\n\n';
 		
 		if (stateblocks != null)
 		{
