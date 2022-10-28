@@ -39,8 +39,6 @@ class State
 			var args:Array<String> = _function.split(',');
 			var result:String = '';
 			
-			trace(args);
-			
 			for (a in 0...args.length)
 			{
 				result += args[a];
