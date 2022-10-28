@@ -10,4 +10,5 @@ enum ParseState
 	STATES;
 	//Expecting conditions
 	NL_OpenBrace;
+	SKIP;
 }

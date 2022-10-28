@@ -11,7 +11,7 @@ class State
 	public var sprite:String;
 	public var frame:String;
 	public var length:Int;
-	public var func:Func;
+	public var func:String;
 	
 	public var noDelay:Bool = false;
 	public var bright:Bool = false;
@@ -20,14 +20,41 @@ class State
 	public var fast:Bool = false;
 	public var offset:Null<StateOffset>;
 	
-	public function new(_sprite:String, _frame:String, _length:Int, _function:Func) 
+	public function new(_sprite:String, _frame:String, _length:Int, _function:String) 
 	{
+		sprite = _sprite;
+		frame = _frame;
+		length = _length;
+		func = clean(_function);
+	}
+	
+	function clean(_function:String):String
+	{
+		if (_function == "") return "";
+		var items:Array<String> = _function.split('(');
 		
+		if (_function.indexOf('(') == -1) return items[0] + '()';
+		else
+		{
+			var args:Array<String> = _function.split(',');
+			var result:String = '';
+			
+			trace(args);
+			
+			for (a in 0...args.length)
+			{
+				result += args[a];
+				if (a != args.length - 1) result += ', ';
+			}
+			
+			return result;
+		}
+		
+		throw 'yo dawg you dun goofed';
 	}
 	
-	public static function toZSCState(_state:DecoState):ZSCState
+	public function toZScript():String
 	{
-		return new ZSCState(_state.sprite, _state.frame, _state.length, _state.func);
+		return '$sprite $frame $length' + (func == "" ? "" : ' $func');
 	}
-	
 }

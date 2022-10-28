@@ -5,11 +5,14 @@ import enums.Func;
 import enums.ParseState;
 import hxd.File;
 import types.Actor;
+import types.State;
+import types.StateBlock;
 import types.propvalues.Combo;
 import types.propvalues.Flag;
 import types.propvalues.PropData;
 import types.propvalues.SingleInteger;
 import types.propvalues.SingleString;
+import types.propvalues.StringFloatCombo;
 import types.propvalues.StringIntCombo;
 import types.propvalues.UDMFMetaData;
 import enums.PropName;
@@ -42,6 +45,8 @@ class Main extends App
 	var decolines:Array<String>;
 	var parseState:ParseState = NONE;
 	var actor:Null<Actor> = null;
+	var inStateBlock = false;
+	var activeStateBlock:StateBlock;
 	
 	function parseDeco(_text:String)
 	{
@@ -180,6 +185,8 @@ class Main extends App
 								actor.properties.push(new SingleInteger('Mass', Std.parseInt(value)));
 							case PropName.GIBHEALTH:
 								actor.properties.push(new SingleInteger('GibHealth', Std.parseInt(value)));
+							case PropName.SPEED:
+								actor.properties.push(new SingleInteger('Speed', Std.parseInt(value)));
 							case PropName.MAXTARGETRANGE:
 								actor.properties.push(new SingleInteger('MaxTargetRange', Std.parseInt(value)));
 							case PropName.PAINCHANCE:
@@ -189,12 +196,32 @@ class Main extends App
 									reinjectSpaces();
 									actor.properties.push(new StringIntCombo('PainChance', value, Std.parseInt(items[items.length - 1])));
 								}
+							case PropName.DAMAGEFACTOR:
+								reinjectSpaces();
+								actor.properties.push(new StringFloatCombo('DamageFactor', value, Std.parseFloat(items[items.length - 1])));
 							case PropName.TAG:
 								reinjectSpaces();
 								actor.properties.push(new SingleString("Tag", value));
 							case PropName.BLOODCOLOR:
 								reinjectSpaces();
 								actor.properties.push(new SingleString("BloodColor", value));
+							case PropName.SPECIES:
+								reinjectSpaces();
+								actor.properties.push(new SingleString("Species", value));
+							case PropName.OBITUARY:
+								reinjectSpaces();
+								actor.properties.push(new SingleString("Obituary", value));
+							case PropName.SEESOUND:
+								reinjectSpaces();
+								actor.properties.push(new SingleString("SeeSound", value));
+							case PropName.ACTIVESOUND:
+								reinjectSpaces();
+								actor.properties.push(new SingleString("ActiveSound", value));
+							case PropName.DEATHSOUND:
+								reinjectSpaces();
+								actor.properties.push(new SingleString("DeathSound", value));
+							case "":
+								continue;
 							default:
 								trace('Unsupported property: ${prop.toUpperCase()}');
 						}
@@ -204,13 +231,67 @@ class Main extends App
 					
 				case STATES:
 					
+					if (items[0].indexOf('}') != -1) {
+						parseState = SKIP;
+						continue;
+					}
+					if (items[0].indexOf('//') != -1) continue;
+					
+					if (actor.stateblocks == null) {
+						actor.stateblocks = new Array();
+						continue;
+					}
+					
+					if (items[0].lastIndexOf(':') != -1)
+					{
+						trace(items[0]);
+						var stateblock = new StateBlock(items[0]);
+						activeStateBlock = stateblock;
+						actor.stateblocks.push(stateblock);
+						continue;
+					}
+					
+					switch (items[0].toUpperCase())
+					{
+						case "STOP":
+							activeStateBlock.EndCondition = "stop";
+							continue;
+						case "LOOP":
+							activeStateBlock.EndCondition = "loop";
+							continue;
+						case "GOTO":
+							activeStateBlock.EndCondition = "goto " + items[1];
+							continue;
+						case "":
+							continue;
+						default:
+							var sprite = items[0];
+							var frames = items[1];
+							var ticrat = items[2];
+							
+							var func:String = items[3] == null ? "" : items[3];
+							if (func.indexOf('//') != -1) continue;
+							if (items.length > 4)
+							{
+								for (index in 4...items.length)
+								{
+									if (items[index].indexOf('//') != -1) break;
+									func += items[index];
+								}
+							}
+							
+							activeStateBlock.states.push(new State(sprite, frames, Std.parseInt(ticrat), func));
+					}
+					
+				case SKIP:
+					//debug state for when I just want the loop to fuck off
 				default:
 					throw 'man, what the fuck? Impossible crash in switch(parsestate)';
 			}
 		}
 		
 		var output:String = actor.toZScriptActor();
-		File.saveBytes('./output.zsc', Bytes.ofString(output));
+		File.saveBytes('./ZSCRIPT.zsc', Bytes.ofString(output));
 		
 		trace('Done!');
 	}

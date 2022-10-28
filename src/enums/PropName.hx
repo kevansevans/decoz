@@ -11,6 +11,7 @@ enum abstract PropName(String) to String
 	var OBITUARY;
 	var SEESOUND;
 	var ACTIVESOUND;
+	var DEATHSOUND;
 	var HEALTH;
 	var MONSTER;
 	var RADIUS;
@@ -20,4 +21,5 @@ enum abstract PropName(String) to String
 	var PAINCHANCE;
 	var MAXTARGETRANGE;
 	var GIBHEALTH;
+	var DAMAGEFACTOR;
 }
