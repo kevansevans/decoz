@@ -15,24 +15,31 @@ class ZDoomFile
 	public var const:Array<Constant>;
 	
 	public var name:String;
-	public var path:String;
+	public var localpath:String;
+	public var filepath:String;
 	
-	public function new(_name:String, _path:String) 
+	public function new(_name:String, _localPath:String, _filePath:String) 
 	{
 		actors = new Array();
 		const = new Array();
+		
+		name = _name;
+		localpath = _localPath;
+		filepath = _filePath;
 	}
 	
 	public function toZScriptFile():String
 	{
 		var result:String = '';
 		
-		for (con in const)
+		if (const.length > 0)
 		{
-			result += con.toString() + '\n';
+			for (con in const)
+			{
+				result += con.toString() + '\n';
+			}
+			result += '\n';
 		}
-		
-		result += '\n';
 		
 		for (actor in actors)
 		{
@@ -45,9 +52,9 @@ class ZDoomFile
 	static var activeActor:Actor;
 	static var activeStateBlock:StateBlock;
 	
-	public static function parseFile(_text:String)
+	public static function parseFile(_file:ZDoomFile, _text:String)
 	{
-		var file:ZDoomFile = Main.ZDFile;
+		var file:ZDoomFile = _file;
 		
 		var decolines:Array<String> = _text.split('\n');
 		
@@ -57,12 +64,18 @@ class ZDoomFile
 		{
 			if (decolines[linepos].indexOf('//') == 0) continue;
 			
-			var items = decolines[linepos].split(' ');
+			var items:Array<String> = [];
+			var preSplit = decolines[linepos].split(' ');
 			
-			for (index in 0...items.length)
+			for (index in 0...preSplit.length)
 			{
-				items[index] = sanitize(items[index]);
+				if (preSplit[index] != '')
+				{
+					items.push(sanitize(preSplit[index]));
+				}
 			}
+			
+			if (items.length == 0) continue;
 			
 			switch (parseState)
 			{
@@ -70,6 +83,10 @@ class ZDoomFile
 					
 					switch (items[0].toUpperCase())
 					{
+						case '#INCLUDE':
+							var secs:Array<String> = items[1].split('"');
+							Main.importIncluded(secs[1]);
+							continue;
 						case 'CONST':
 							file.const.push(new Constant(items[2], items[4]));
 							continue;
@@ -93,7 +110,12 @@ class ZDoomFile
 								line.push(item);
 							}
 							
-							switch (line.length)
+							var length = line.length;
+							if (line[length - 1] == '{') {
+								length -= 1;
+							}
+							
+							switch (length)
 							{
 								case 2:
 									activeActor.name = line[1];
@@ -120,7 +142,7 @@ class ZDoomFile
 									throw 'HWAT!? ${line.length}, $linepos'; 
 							}
 							
-							parseState = NL_OpenBrace;
+							parseState = PROPERTIES;
 							
 							continue;
 							
@@ -139,7 +161,7 @@ class ZDoomFile
 					
 					var prop = items[0];
 					
-					if (prop.toUpperCase() == "STATES")
+					if (prop.toUpperCase().indexOf("STATES") != -1)
 					{
 						parseState = STATES;
 						continue;
@@ -167,7 +189,7 @@ class ZDoomFile
 							case PropName.MONSTER:
 								activeActor.properties.push(new Combo('Monster'));
 							default:
-								trace('Unsupported property: ${prop.toUpperCase()}');
+								//trace('Unsupported property: ${prop.toUpperCase()}');
 						}
 						continue;
 					}
@@ -176,32 +198,41 @@ class ZDoomFile
 					{
 						var value:String = items[1];
 						
-						function reinjectSpaces()
+						function reinjectSpaces(_commas:Bool = false)
 						{
-							if (items[1].charAt(0) == '"')
+							value = '';
+							for (index in 1...items.length)
 							{
-								if (items.length > 2 && items[1].charAt(items[1].length - 2) != '"')
-								{
-									var pos:Int = 2;
-									while (true)
+								if (items[index] != '') {
+									value += items[index];
+									if (index < items.length - 1)
 									{
-										value += ' ' + (items[pos].indexOf(',') == -1 ? items[pos] : items[pos].substr(0, items[pos].length - 2));
-										if (items[pos].indexOf('"') != -1 && items[pos].charAt(0) != '"') break;
-										++pos;
-									}
-								} else {
-									if (value.indexOf(',') != -1)
-									{
-										value = value.substr(0, value.length - 1);
+										value += (_commas ? ', ' : ' ');
 									}
 								}
 							}
 						}
 						
+						var subtypes:Array<String> = prop.split('.');
+						if (subtypes.length > 1)
+						{
+							prop = '';
+							for (word in subtypes)
+							{
+								prop += word;
+							}
+						}
+						
+						//To help future proof changes, and also to take an oppourtunity to clean the lines,
+						//Rather than inlining each line and slap a ; at the end of it, we'll make a check
+						//for every type so they can be handled correctly. Stuff like PainChance can either
+						//have a single int, or a string and an int in it's line.
 						switch (prop.toUpperCase())
 						{
 							case PropName.HEALTH:
 								activeActor.properties.push(new SingleInteger('Health', Std.parseInt(value)));
+							case PropName.SPAWNID:
+								activeActor.properties.push(new SingleInteger('SpawnID', Std.parseInt(value)));
 							case PropName.RADIUS:
 								activeActor.properties.push(new SingleInteger('Radius', Std.parseInt(value)));
 							case PropName.HEIGHT:
@@ -214,6 +245,20 @@ class ZDoomFile
 								activeActor.properties.push(new SingleInteger('Speed', Std.parseInt(value)));
 							case PropName.MAXTARGETRANGE:
 								activeActor.properties.push(new SingleInteger('MaxTargetRange', Std.parseInt(value)));
+							case PropName.WEAPONSELECTIONORDER:
+								activeActor.properties.push(new SingleInteger('Weapon.SelectionOrder', Std.parseInt(value)));
+							case PropName.WEAPONAMMOUSE:
+								activeActor.properties.push(new SingleInteger('Weapon.AmmoUse', Std.parseInt(value)));
+							case PropName.WEAPONAMMOGIVE:
+								activeActor.properties.push(new SingleInteger('Weapon.AmmoGive', Std.parseInt(value)));
+							case PropName.INVENTORYAMOUNT:
+								activeActor.properties.push(new SingleInteger('Inventory.Amount', Std.parseInt(value)));
+							case PropName.INVENTORYMAXAMOUNT:
+								activeActor.properties.push(new SingleInteger('Inventory.MaxAmount', Std.parseInt(value)));
+							case PropName.AMMOBACKPACKAMOUNT:
+								activeActor.properties.push(new SingleInteger('Ammo.BackpackAmount', Std.parseInt(value)));
+							case PropName.AMMOBACKPACKMAXAMOUNT:
+								activeActor.properties.push(new SingleInteger('Ammo.BackpackMaxAmount', Std.parseInt(value)));
 							case PropName.SCALE:
 								activeActor.properties.push(new SingleFloat('Scale', Std.parseFloat(value)));
 							case PropName.PAINCHANCE:
@@ -226,6 +271,9 @@ class ZDoomFile
 							case PropName.DAMAGEFACTOR:
 								reinjectSpaces();
 								activeActor.properties.push(new StringFloatCombo('DamageFactor', value, Std.parseFloat(items[items.length - 1])));
+							case PropName.GAME:
+								reinjectSpaces();
+								activeActor.properties.push(new SingleString("Game", value));
 							case PropName.DAMAGETYPE:
 								reinjectSpaces();
 								activeActor.properties.push(new SingleString('DamageType', value));
@@ -247,13 +295,28 @@ class ZDoomFile
 							case PropName.ACTIVESOUND:
 								reinjectSpaces();
 								activeActor.properties.push(new SingleString("ActiveSound", value));
+							case PropName.ATTACKSOUND:
+								reinjectSpaces();
+								activeActor.properties.push(new SingleString("AttackSound", value));
 							case PropName.DEATHSOUND:
 								reinjectSpaces();
 								activeActor.properties.push(new SingleString("DeathSound", value));
-							case "":
+							case PropName.WEAPONAMMOTYPE:
+								reinjectSpaces();
+								activeActor.properties.push(new SingleString("Weapon.AmmoType", value));
+							case PropName.INVENTORYPICKUPMESSAGE:
+								reinjectSpaces();
+								activeActor.properties.push(new SingleString("Inventory.PickupMessage", value));
+							case PropName.INVENTORYICON:
+								reinjectSpaces();
+								activeActor.properties.push(new SingleString("Inventory.Icon", value));
+							case PropName.PLAYERWEAPONSLOT:
+								reinjectSpaces(true);
+								activeActor.properties.push(new MultiValue("Player.WeaponSlot", value.split(', ')));
+							case "" | "//":
 								continue;
 							default:
-								trace('Unsupported property: ${prop.toUpperCase()}');
+								//trace('Unsupported property: ${prop.toUpperCase()}');
 						}
 						
 						continue;
@@ -261,16 +324,15 @@ class ZDoomFile
 					
 				case STATES:
 					
+					if (activeActor.stateblocks == null) {
+						activeActor.stateblocks = new Array();
+					}
+					
 					if (items[0].indexOf('}') != -1) {
 						parseState = NONE;
 						continue;
 					}
 					if (items[0].indexOf('//') != -1) continue;
-					
-					if (activeActor.stateblocks == null) {
-						activeActor.stateblocks = new Array();
-						continue;
-					}
 					
 					if (items[0].lastIndexOf(':') != -1)
 					{
@@ -336,7 +398,7 @@ class ZDoomFile
 			input = input.substr(0, input.length - 1);
 		}
 		
-		while (input.lastIndexOf('\r') != -1)
+		while (input.lastIndexOf(',') != -1)
 		{
 			input = input.substr(0, input.length - 1);
 		}
